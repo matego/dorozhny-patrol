@@ -1,0 +1,18 @@
+User-agent: *
+Disallow: /data/
+Noindex: /
+
+User-agent: Googlebot
+Disallow: /data/
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
