@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Дорожный патруль — карта Москвы 1996–2007</title>
+
+  <!-- Leaflet CSS (swap to MapLibre GL CSS here when migrating) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-width: 300px;
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface2: #0f3460;
+      --text: #e0e0e0;
+      --text-muted: #8a8a9a;
+      --accent: #e94560;
+      --radius: 8px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    #layout {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 1000;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.4);
+    }
+
+    #sidebar-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--surface2);
+    }
+
+    #sidebar-header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    #sidebar-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    #stats-bar {
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    /* ── Filters ── */
+    #filter-section {
+      padding: 12px 16px 8px;
+      border-bottom: 1px solid var(--surface2);
+    }
+
+    #filter-section .section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    #filter-actions {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .filter-action-btn {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--surface2);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-action-btn:hover { background: var(--surface2); color: var(--text); }
+
+    #filter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .filter-item:hover { background: var(--surface2); }
+    .filter-item.inactive { opacity: 0.4; }
+
+    .filter-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    .filter-label {
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .filter-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    /* ── Year range filter ── */
+    #year-section {
+      padding: 12px 16px 12px;
+      border-bottom: 1px solid var(--surface2);
+    }
+
+    #year-section .section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .year-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .year-row-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      width: 20px;
+      flex-shrink: 0;
+    }
+
+    .year-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--surface2);
+      outline: none;
+      cursor: pointer;
+    }
+    .year-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    .year-value {
+      font-size: 12px;
+      color: var(--text);
+      width: 34px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── Info box ── */
+    #info-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    #info-box .hint {
+      margin-top: 8px;
+    }
+
+    /* ── Map ── */
+    #map {
+      flex: 1;
+      /* Swap: replace with MapLibre map container when migrating */
+    }
+
+    /* ── Popup ── */
+    .leaflet-popup-content-wrapper {
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--radius);
+      border: 1px solid var(--surface2);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      max-width: 280px;
+    }
+    .leaflet-popup-tip { background: var(--surface); }
+    .leaflet-popup-close-button { color: var(--text-muted) !important; }
+
+    .popup-type-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .popup-description {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text);
+      margin: 6px 0;
+    }
+
+    .popup-address {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .popup-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .popup-yt-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #ff4e4e;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .popup-yt-link:hover { text-decoration: underline; }
+    .popup-yt-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    /* ── Loading overlay ── */
+    #loading {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.4s;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--surface2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Mobile ── */
+    @media (max-width: 640px) {
+      #layout { flex-direction: column; }
+
+      #sidebar {
+        width: 100%;
+        min-width: 0;
+        max-height: 45vh;
+        overflow-y: auto;
+      }
+
+      #map { flex: 1; min-height: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Загрузка данных…</p>
+</div>
+
+<div id="layout">
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>Дорожный патруль</h1>
+      <p>Москва · 1996–2007</p>
+      <div id="stats-bar">Загрузка…</div>
+    </div>
+
+    <div id="filter-section">
+      <div class="section-title">Тип события</div>
+      <div id="filter-actions">
+        <button class="filter-action-btn" id="btn-all">Все</button>
+        <button class="filter-action-btn" id="btn-none">Снять</button>
+      </div>
+      <div id="filter-list"></div>
+    </div>
+
+    <div id="year-section">
+      <div class="section-title">Период</div>
+      <div class="year-row">
+        <span class="year-row-label">с</span>
+        <input type="range" class="year-slider" id="year-from">
+        <span class="year-value" id="year-from-val">—</span>
+      </div>
+      <div class="year-row">
+        <span class="year-row-label">по</span>
+        <input type="range" class="year-slider" id="year-to">
+        <span class="year-value" id="year-to-val">—</span>
+      </div>
+    </div>
+
+    <div id="info-box">
+      <p class="hint">Нажмите на маркер, чтобы увидеть детали события и ссылку на YouTube с таймкодом.</p>
+    </div>
+  </div>
+
+  <!-- Map container — replace with MapLibre div when migrating -->
+  <div id="map"></div>
+</div>
+
+<!-- Leaflet JS (swap to MapLibre GL JS when migrating) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG — edit here to change colors/labels per event type
+// When migrating to MapLibre: move colors into a GL style layer
+// ═══════════════════════════════════════════════════════════
+const EVENT_CONFIG = {
+  'ДТП':               { color: '#f59e0b', label: 'ДТП',                order: 0 },
+  'криминал':          { color: '#ef4444', label: 'Криминал',            order: 1 },
+  'пожар':             { color: '#f97316', label: 'Пожар',               order: 2 },
+  'несчастный случай': { color: '#facc15', label: 'Несчастный случай',   order: 3 },
+  'теракт':            { color: '#a855f7', label: 'Теракт',              order: 4 },
+  'коммунальная авария':{ color: '#3b82f6', label: 'Коммунальная авария',order: 5 },
+  'поджог':            { color: '#fb923c', label: 'Поджог',              order: 6 },
+  'авиакатастрофа':    { color: '#94a3b8', label: 'Авиакатастрофа',     order: 7 },
+  'другое':            { color: '#6b7280', label: 'Другое',              order: 8 },
+};
+
+// Normalize known typo in dataset
+function normalizeType(t) {
+  if (t === 'криminал') return 'криминал';
+  return t in EVENT_CONFIG ? t : 'другое';
+}
+
+function getConfig(type) {
+  return EVENT_CONFIG[normalizeType(type)] ?? EVENT_CONFIG['другое'];
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAP INIT (Leaflet)
+// When migrating to MapLibre: replace L.map() + L.tileLayer()
+// ═══════════════════════════════════════════════════════════
+const map = L.map('map', {
+  center: [55.751, 37.618],
+  zoom: 11,
+  zoomControl: true,
+});
+
+// CartoDB Positron — neutral light base, works well with colored markers
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let allMarkers = [];        // { marker, type, year, layer }
+let activeTypes = new Set(Object.keys(EVENT_CONFIG));
+let layerGroup = L.layerGroup().addTo(map);
+
+let yearMin = 9999, yearMax = 0;
+let filterYearFrom = 0, filterYearTo = 9999;
+
+// ═══════════════════════════════════════════════════════════
+// LOAD DATA
+// fetch() works on HTTP (GitHub Pages, local server).
+// For local file:// open use: python -m http.server 8787
+// ═══════════════════════════════════════════════════════════
+fetch('data/events_dataset.geojson')
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(geojson => {
+    buildMarkers(geojson.features);
+    buildFilters(geojson.features);
+    buildYearSliders();
+    updateStatsBar();
+    document.getElementById('loading').classList.add('hidden');
+  })
+  .catch(err => {
+    document.querySelector('#loading p').textContent = 'Ошибка загрузки: ' + err.message;
+  });
+
+// ═══════════════════════════════════════════════════════════
+// MARKERS
+// When migrating to MapLibre: replace L.circleMarker() with
+// a GeoJSON source + circle layer, use feature-state for filters
+// ═══════════════════════════════════════════════════════════
+function buildMarkers(features) {
+  features.forEach(f => {
+    const p = f.properties;
+    const [lon, lat] = f.geometry.coordinates;
+    const type = normalizeType(p.event_type);
+    const cfg = EVENT_CONFIG[type];
+    const year = parseYear(p.video_date);
+
+    if (year !== null) {
+      if (year < yearMin) yearMin = year;
+      if (year > yearMax) yearMax = year;
+    }
+
+    const marker = L.circleMarker([lat, lon], {
+      radius: 5,
+      fillColor: cfg.color,
+      color: 'rgba(0,0,0,0.4)',
+      weight: 1,
+      fillOpacity: 0.85,
+    });
+
+    marker.bindPopup(buildPopupHTML(p, cfg), { maxWidth: 280 });
+
+    allMarkers.push({ marker, type, year });
+    layerGroup.addLayer(marker);
+  });
+
+  filterYearFrom = yearMin;
+  filterYearTo = yearMax;
+}
+
+function buildPopupHTML(p, cfg) {
+  const ytIcon = `<svg class="popup-yt-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.75 15.5V8.5l6.5 3.5-6.5 3.5z"/>
+  </svg>`;
+
+  const ytLink = p.youtube_link
+    ? `<a class="popup-yt-link" href="${escapeAttr(p.youtube_link)}" target="_blank" rel="noopener">
+        ${ytIcon} Смотреть · ${p.timecode}
+       </a>`
+    : '';
+
+  return `
+    <span class="popup-type-badge" style="background:${cfg.color}">${cfg.label}</span>
+    <div class="popup-description">${escapeHtml(p.description || '—')}</div>
+    <div class="popup-address">${escapeHtml(p.address || '—')}</div>
+    <div class="popup-date">${p.video_date || '—'} · ${escapeHtml(p.video_title || '')}</div>
+    ${ytLink}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FILTER PANEL
+// ═══════════════════════════════════════════════════════════
+function buildFilters(features) {
+  const counts = {};
+  features.forEach(f => {
+    const t = normalizeType(f.properties.event_type);
+    counts[t] = (counts[t] || 0) + 1;
+  });
+
+  const list = document.getElementById('filter-list');
+
+  Object.entries(EVENT_CONFIG)
+    .sort((a, b) => a[1].order - b[1].order)
+    .forEach(([type, cfg]) => {
+      const count = counts[type] || 0;
+      if (count === 0) return;
+
+      const item = document.createElement('div');
+      item.className = 'filter-item';
+      item.dataset.type = type;
+      item.innerHTML = `
+        <span class="filter-dot" style="background:${cfg.color}"></span>
+        <span class="filter-label">${cfg.label}</span>
+        <span class="filter-count">${count}</span>
+      `;
+      item.addEventListener('click', () => toggleType(type, item));
+      list.appendChild(item);
+    });
+
+  document.getElementById('btn-all').addEventListener('click', () => {
+    activeTypes = new Set(Object.keys(EVENT_CONFIG));
+    list.querySelectorAll('.filter-item').forEach(el => el.classList.remove('inactive'));
+    applyFilters();
+  });
+
+  document.getElementById('btn-none').addEventListener('click', () => {
+    activeTypes.clear();
+    list.querySelectorAll('.filter-item').forEach(el => el.classList.add('inactive'));
+    applyFilters();
+  });
+}
+
+function toggleType(type, item) {
+  if (activeTypes.has(type)) {
+    activeTypes.delete(type);
+    item.classList.add('inactive');
+  } else {
+    activeTypes.add(type);
+    item.classList.remove('inactive');
+  }
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════════
+// YEAR SLIDERS
+// ═══════════════════════════════════════════════════════════
+function buildYearSliders() {
+  const fromSlider = document.getElementById('year-from');
+  const toSlider   = document.getElementById('year-to');
+
+  fromSlider.min = yearMin; fromSlider.max = yearMax; fromSlider.value = yearMin;
+  toSlider.min   = yearMin; toSlider.max   = yearMax; toSlider.value   = yearMax;
+
+  filterYearFrom = yearMin;
+  filterYearTo   = yearMax;
+  updateYearDisplay();
+
+  fromSlider.addEventListener('input', () => {
+    if (+fromSlider.value > +toSlider.value) toSlider.value = fromSlider.value;
+    filterYearFrom = +fromSlider.value;
+    filterYearTo   = +toSlider.value;
+    updateYearDisplay();
+    applyFilters();
+  });
+
+  toSlider.addEventListener('input', () => {
+    if (+toSlider.value < +fromSlider.value) fromSlider.value = toSlider.value;
+    filterYearFrom = +fromSlider.value;
+    filterYearTo   = +toSlider.value;
+    updateYearDisplay();
+    applyFilters();
+  });
+}
+
+function updateYearDisplay() {
+  document.getElementById('year-from-val').textContent = document.getElementById('year-from').value;
+  document.getElementById('year-to-val').textContent   = document.getElementById('year-to').value;
+}
+
+// ═══════════════════════════════════════════════════════════
+// APPLY FILTERS
+// ═══════════════════════════════════════════════════════════
+function applyFilters() {
+  let visible = 0;
+  allMarkers.forEach(({ marker, type, year }) => {
+    const yearOk = year === null || (year >= filterYearFrom && year <= filterYearTo);
+    const show = activeTypes.has(type) && yearOk;
+    if (show) {
+      if (!layerGroup.hasLayer(marker)) layerGroup.addLayer(marker);
+      visible++;
+    } else {
+      layerGroup.removeLayer(marker);
+    }
+  });
+  updateStatsBar(visible);
+}
+
+function updateStatsBar(visible) {
+  const total = allMarkers.length;
+  const n = visible !== undefined ? visible : total;
+  document.getElementById('stats-bar').textContent =
+    n === total ? `${total.toLocaleString('ru')} событий` : `${n.toLocaleString('ru')} из ${total.toLocaleString('ru')}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function parseYear(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.split('.');
+  const y = parts.length === 3 ? parseInt(parts[2], 10) : null;
+  return (y && y > 1900 && y < 2100) ? y : null;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

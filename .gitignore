@@ -1,37 +1,16 @@
-# Sensitive
-cookies.txt
-chrome_cookies_copy.db
-chrome_live_cookies.db
-debug_cookies.db
-debug_tmp.db
-*.cookies.db
-anthropic_key.txt
-
-# Large/intermediate
-subs/                  # Raw VTT files (~46 MB) — regenerable from scripts/1_download_subs.py
-batch_results/         # Per-round agent inputs/outputs
-events_to_add.json     # Intermediate merge file
-
 # Python
 __pycache__/
 *.pyc
-*.pyo
-.venv/
-venv/
+.env
 
-# Logs
-*.log
-download_log.txt
-download_progress.txt
-geocode_progress.txt
-geocode_retry_progress.txt
-step*_log.txt
+# Large/generated files
+transcripts/
+data/geocode_cache.json
+data/events_data.js
+
+# Cookies (sensitive)
+cookies.txt
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Editor
-.vscode/
-.idea/
-*.swp
