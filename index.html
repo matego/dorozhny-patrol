@@ -407,11 +407,23 @@ const map = L.map('map', {
   zoomControl: true,
 });
 
-// CartoDB Positron — neutral light base, works well with colored markers
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains: 'abcd',
+// Esri Dark Gray Canvas — dark base without API key
+// (CARTO basemaps started requiring an API key and serve "API KEY REQUIRED" tiles)
+const ESRI_CANVAS = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
+L.tileLayer(`${ESRI_CANVAS}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
+  attribution: 'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
   maxZoom: 19,
+  maxNativeZoom: 16,
+}).addTo(map);
+
+// Labels in their own pane: above the base, below markers, not clickable
+map.createPane('labels');
+map.getPane('labels').style.zIndex = 350;
+map.getPane('labels').style.pointerEvents = 'none';
+L.tileLayer(`${ESRI_CANVAS}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {
+  pane: 'labels',
+  maxZoom: 19,
+  maxNativeZoom: 16,
 }).addTo(map);
 
 // ═══════════════════════════════════════════════════════════
